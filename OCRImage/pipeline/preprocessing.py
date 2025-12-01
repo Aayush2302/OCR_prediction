@@ -1,44 +1,75 @@
+# preprocess_pipeline.py
+from pathlib import Path
 import cv2
-import sys,os
-from OCRImage.exception.exception import OCRImageException
+from OCRImage.components.orientation import auto_orient_image
+from OCRImage.components.pipeline import PreprocessingPipeline
+from OCRImage.constant.config import PreProcessingConfig
 from OCRImage.logging import logger
-from OCRImage.constant.config import PreProcessingConfig as cfg
-from OCRImage.components.grayscale import convert_to_grayscale
-from OCRImage.components.thresholding import apply_threshold
-from OCRImage.components.denoising import denoise_image
-from OCRImage.components.morphology import apply_morphology
-from OCRImage.components.clahe import apply_clahe
 
 
-def preprocess_image(image):
+def run_preprocessing_on_folder(
+    data_folder: str = "data",
+    output_folder: str = r"artifacts/preprocessing/results",
+    visualize: bool = False,
+):
     """
-    Preprocess the input image by applying a series of operations: grayscale conversion,
-    CLAHE, thresholding, denoising, and morphological operations.
-
-    Parameters:
-    image (numpy.ndarray): The input image.
-
-    Returns:
-    numpy.ndarray: The preprocessed image.
+    Run orientation correction and preprocessing pipeline on all images in `data_folder`.
+    Saves preprocessed output images into `output_folder` with suffix `_preprocessed.png`.
+    Returns list of saved file paths.
     """
-    try:
-        # Convert to Grayscale
-        gray_image = convert_to_grayscale(image)
+    data_path = Path(data_folder)
+    out_path = Path(output_folder)
+    out_path.mkdir(parents=True, exist_ok=True)
 
-        # Apply CLAHE
-        clahe_image = apply_clahe(gray_image)
+    if not data_path.exists():
+        print(f"❌ Data folder not found: {data_path.resolve()}")
+        return []
 
-        # Apply Thresholding
-        thresh_image = apply_threshold(clahe_image)
+    image_files = sorted([p for p in data_path.glob("*.*") if p.suffix.lower() in [".png", ".jpg", ".jpeg", ".tif", ".tiff"]])
+    if not image_files:
+        print(f"⚠ No image files found in {data_path.resolve()}")
+        return []
 
-        # Denoise Image
-        denoised_image = denoise_image(thresh_image)
+    print(f"Found {len(image_files)} images in {data_path.resolve()}")
+    config = PreProcessingConfig()
+    pipeline = PreprocessingPipeline(config)
 
-        # Apply Morphological Operations
-        morph_image = apply_morphology(denoised_image)
+    saved_files = []
+    for img_path in image_files:
+        print("\n" + "-" * 70)
+        print(f"Processing: {img_path.name}")
+        img = cv2.imread(str(img_path))
+        if img is None:
+            print(f"  ❌ Unable to load: {img_path.name}")
+            continue
 
-        return morph_image
+        try:
+            # Step 1: orientation correction
+            oriented = auto_orient_image(img)
+            print(f"  Orientation corrected: {img.shape} -> {oriented.shape}")
 
-    except Exception as e:
-        logger.logging.error(f"Error in preprocess_image: {e}")
-        raise OCRImageException(e, sys)
+            # Step 2: preprocessing pipeline (returns processed_image, metadata)
+            processed, metadata = pipeline.process(oriented, img_path.stem)
+            # If your pipeline returns differently, adjust above accordingly.
+
+            # Save processed image
+            out_name = f"{img_path.stem}_preprocessed.png"
+            out_file = out_path.joinpath(out_name)
+            # Convert if needed to BGR uint8
+            if processed is None:
+                print("  ⚠ Pipeline returned None for processed image, skipping save.")
+                continue
+
+            cv2.imwrite(str(out_file), processed)
+            print(f"  ✅ Saved preprocessed image: {out_file}")
+            saved_files.append(out_file)
+        except Exception as e:
+            print(f"  ❌ Error processing {img_path.name}: {e}")
+            logger.exception(e)
+
+    print("\nPreprocessing completed.")
+    return saved_files
+
+
+if __name__ == "__main__":
+    run_preprocessing_on_folder()

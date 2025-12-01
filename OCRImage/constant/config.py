@@ -1,55 +1,60 @@
+"""
+Configuration with auto-orientation enabled.
+"""
+
 class PreProcessingConfig:
     """Configuration for image preprocessing operations."""
     
     # ========================================
-    # RESIZE - Critical for small text OCR!
+    # AUTO-ORIENTATION (NEW!)
     # ========================================
-    TARGET_SIZE = 2400  # 🔥 DOUBLE your current 1200 - Critical!
+    AUTO_ORIENT = True  # 🔥 Enable automatic orientation correction
+    
+    # ========================================
+    # RESIZE
+    # ========================================
+    TARGET_SIZE = 1200  # Your current size (works for you)
     TARGET_HEIGHT = None
     
     # ========================================
-    # DESKEWING - Your images look straight
+    # DESKEWING
     # ========================================
-    ENABLE_DESKEW = False  # 🔥 Disable - saves time, your images are straight
+    ENABLE_DESKEW = False  # You have this disabled
     
     # ========================================
-    # CLAHE - Contrast Enhancement
+    # CLAHE
     # ========================================
     USE_CLAHE = True
-    CLAHE_CLIP_LIMIT = 2.5  # 🔥 Slightly higher than your 2.0
+    CLAHE_CLIP_LIMIT = 2.0
     CLAHE_TILE_GRID_SIZE = 8
     
     # ========================================
-    # DENOISING - CRITICAL for your noisy images
+    # THRESHOLDING
     # ========================================
-    DENOISING_METHOD = 'bilateral'  # 🔥 Keep bilateral
-    BILATERAL_DIAMETER = 5  # 🔥 Reduced from 9 - gentler
-    BILATERAL_SIGMA_COLOR = 50  # 🔥 Reduced from 75
-    BILATERAL_SIGMA_SPACE = 50  # 🔥 Reduced from 75
+    THRESHOLD_METHOD = "adaptive"
+    ADAPTIVE_BLOCK_SIZE = 21
+    ADAPTIVE_C = 10
     
-    # Alternative methods (not used but available)
+    # ========================================
+    # DENOISING (you have disabled)
+    # ========================================
+    DENOISING_METHOD = 'gaussian'
     GAUSSIAN_KERNEL_SIZE = 5
     MEDIAN_KERNEL_SIZE = 3
+    BILATERAL_DIAMETER = 9
+    BILATERAL_SIGMA_COLOR = 75
+    BILATERAL_SIGMA_SPACE = 75
     
     # ========================================
-    # THRESHOLDING - Convert to binary
+    # MORPHOLOGY
     # ========================================
-    THRESHOLD_METHOD = 'adaptive'  # 🔥 Good choice!
-    ADAPTIVE_BLOCK_SIZE = 15  # 🔥 Reduced from 21 - better for text
-    ADAPTIVE_C = 5  # 🔥 Reduced from 10 - less aggressive
-    
-    # ========================================
-    # MORPHOLOGY - Clean up binary image
-    # ========================================
-    MORPHOLOGY_METHOD = 'closing'  # 🔥 Connects broken text
-    MORPHOLOGY_KERNEL_SIZE = 2  # 🔥 Reduced from 3 - preserve details
+    MORPHOLOGY_METHOD = 'closing'
+    MORPHOLOGY_KERNEL_SIZE = 3
     
     # ========================================
     # ARTIFACT STORAGE
     # ========================================
     SAVE_INTERMEDIATE_STEPS = True
-
-    SMART_DENOISE = True
     
     # ========================================
     # DEBUG

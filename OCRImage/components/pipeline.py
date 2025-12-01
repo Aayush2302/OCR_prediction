@@ -1,6 +1,5 @@
 """
-Optimized preprocessing pipeline for your shipping labels.
-Key: Proper order and ALL steps enabled!
+Updated preprocessing pipeline with automatic orientation correction.
 """
 import cv2
 from pathlib import Path
@@ -10,8 +9,6 @@ import json
 import numpy as np
 
 from OCRImage.constant.config import PreProcessingConfig as cfg
-
-
 from OCRImage.exception.exception import OCRImageException
 from OCRImage.logging import logger
 from OCRImage.components import (
@@ -21,7 +18,8 @@ from OCRImage.components import (
     apply_threshold,
     denoise_image,
     apply_morphology,
-    resize_image
+    resize_image,
+    auto_orient_image  # NEW IMPORT
 )
 import sys
 
@@ -29,6 +27,7 @@ import sys
 class PreprocessingPipeline:
     """
     Manages the complete image preprocessing workflow with artifact storage.
+    NOW INCLUDES: Automatic orientation correction!
     """
     
     def __init__(self, config, artifacts_dir: str = "artifacts/preprocessing"):
@@ -42,6 +41,8 @@ class PreprocessingPipeline:
         self.config = config
         self.artifacts_dir = Path(artifacts_dir)
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
+        self.result_path = Path(artifacts_dir) / "results"
+        self.result_path.mkdir(parents=True, exist_ok=True)
         
         # Store processing metadata
         self.metadata = {
@@ -80,7 +81,9 @@ class PreprocessingPipeline:
     def process(self, image, image_name: str = "unknown") -> Tuple[any, Dict]:
         """
         Run complete preprocessing pipeline.
-        OPTIMIZED ORDER: Resize → Grayscale → Denoise → CLAHE → Threshold → Morphology
+        
+        NEW ORDER: 
+        0. Auto-Orient (NEW!) → 1. Resize → 2. Grayscale → 3. CLAHE → 4. Threshold → 5. Sharpen → 6. Morphology
         
         Args:
             image: Input image (numpy array)
@@ -110,13 +113,26 @@ class PreprocessingPipeline:
             current_image = image
             
             # ========================================
-            # STEP 1: Resize FIRST (upscale for better OCR)
+            # STEP 0: AUTO-ORIENT (NEW!)
+            # Detect and correct vertical images
+            # ========================================
+            if hasattr(self.config, 'AUTO_ORIENT') and self.config.AUTO_ORIENT:
+                current_image = self._apply_step(
+                    current_image,
+                    auto_orient_image,
+                    "01_oriented",
+                    session_id
+                )
+                logger.logging.info("Auto-orientation applied")
+            
+            # ========================================
+            # STEP 1: Resize (upscale for better OCR)
             # ========================================
             if hasattr(self.config, 'TARGET_SIZE') and self.config.TARGET_SIZE:
                 current_image = self._apply_step(
                     current_image,
                     resize_image,
-                    "01_resized",
+                    "02_resized",
                     session_id,
                     width=self.config.TARGET_SIZE
                 )
@@ -129,7 +145,7 @@ class PreprocessingPipeline:
                 current_image = self._apply_step(
                     current_image,
                     deskew_image,
-                    "02_deskewed",
+                    "03_deskewed",
                     session_id
                 )
             
@@ -140,24 +156,12 @@ class PreprocessingPipeline:
                 current_image = self._apply_step(
                     current_image,
                     convert_to_grayscale,
-                    "03_grayscale",
+                    "04_grayscale",
                     session_id
                 )
             
             # ========================================
-            # STEP 4: Denoise BEFORE CLAHE
-            # Remove noise before enhancing contrast!
-            # ========================================
-            # current_image = self._apply_step(
-            #     current_image,
-            #     denoise_image,
-            #     "04_denoised",
-            #     session_id
-            # )
-            # logger.logging.info(f"Denoising: {self.config.DENOISING_METHOD}")
-            
-            # ========================================
-            # STEP 5: CLAHE (enhance contrast on clean image)
+            # STEP 4: CLAHE (enhance contrast)
             # ========================================
             if self.config.USE_CLAHE:
                 current_image = self._apply_step(
@@ -169,7 +173,7 @@ class PreprocessingPipeline:
                 logger.logging.info(f"CLAHE: clip={self.config.CLAHE_CLIP_LIMIT}")
             
             # ========================================
-            # STEP 6: Thresholding (convert to binary)
+            # STEP 5: Thresholding (convert to binary)
             # ========================================
             current_image = self._apply_step(
                 current_image,
@@ -177,31 +181,39 @@ class PreprocessingPipeline:
                 "06_threshold",
                 session_id
             )
+            
+            # ========================================
+            # STEP 6: Sharpening (your custom step)
+            # ========================================
             kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
             current_image = cv2.filter2D(current_image, -1, kernel)
             current_image = cv2.equalizeHist(current_image)
-            self._save_artifact(current_image, "06b_sharpened", session_id)
-            logger.logging.info(f"Threshold: {self.config.THRESHOLD_METHOD}")
+            self._save_artifact(current_image, "07_sharpened", session_id)
+            logger.logging.info("Sharpening applied")
             
             # ========================================
             # STEP 7: Morphology (clean up binary image)
             # ========================================
-            current_image = self._apply_step(
-                current_image,
-                apply_morphology,
-                "07_morphology",
-                session_id
-            )
-            logger.logging.info(f"Morphology: {self.config.MORPHOLOGY_METHOD}")
-
-            
+            # current_image = self._apply_step(
+            #     current_image,
+            #     apply_morphology,
+            #     "08_morphology",
+            #     session_id
+            # )
+            # logger.logging.info(f"Morphology: {self.config.MORPHOLOGY_METHOD}")
             
             # Save metadata
             self._save_metadata(session_id)
             
             logger.logging.info(f"Preprocessing pipeline completed for {image_name}")
+
+            # save image as the preprocessing result 
+            result_path = self.result_path / f"{image_name}_preprocessed.png"
+            cv2.imwrite(str(result_path), current_image)
+            logger.logging.info(f"Preprocessed image saved to {result_path}")
             
             return current_image, self.metadata
+        
             
         except Exception as e:
             logger.logging.error(f"Error in preprocessing pipeline: {e}")

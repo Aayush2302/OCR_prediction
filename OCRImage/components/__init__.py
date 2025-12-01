@@ -8,6 +8,7 @@ from .thresholding import apply_threshold
 from .denoising import denoise_image
 from .morphology import apply_morphology
 from .resize import resize_image
+from .orientation import auto_orient_image, detect_orientation, rotate_image  # NEW
 
 __all__ = [
     'convert_to_grayscale',
@@ -16,5 +17,8 @@ __all__ = [
     'apply_threshold',
     'denoise_image',
     'apply_morphology',
-    'resize_image'
+    'resize_image',
+    'auto_orient_image',  # NEW
+    'detect_orientation',  # NEW
+    'rotate_image'  # NEW
 ]
