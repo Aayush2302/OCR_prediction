@@ -114,7 +114,8 @@ pip install -r requirements.txt
 ### Usage
 1. Preprocessing + OCR
    ```bash
-   python main.py```
+   python main.py --step all
+   ```
    
 2. Only OCR or Only Preprocessing
   ```bash
