@@ -60,3 +60,12 @@ class PreProcessingConfig:
     # DEBUG
     # ========================================
     SHOW_STEPS = False
+
+    DATA_FOLDER = r"D:\\projects\\ML\\OCR_prediction\\data"
+    OUTPUT_FOLDER = r"D:\\projects\\ML\\OCR_prediction\\artifacts\\preprocessing\\results"
+    ARTIFACTS_FOLDER = r"D:\\projects\\ML\\OCR_prediction\\artifacts\\preprocessing"
+
+class OCRConfig:
+    """Configuration for OCR operations."""
+    PREPROCESSED_FOLDER = r"D:\\projects\\ML\\OCR_prediction\\artifacts\\preprocessing\\results"
+    OCR_ARTIFACTS_FOLDER = r"D:\\projects\\ML\\OCR_prediction\\artifacts\\ocr"

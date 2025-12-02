@@ -1,7 +1,8 @@
 # main.py
 import argparse
-from OCRImage.pipeline.preprocessing import run_preprocessing_on_folder
-from OCRImage.pipeline.ocr import run_ocr_batch
+from OCRImage.pipeline.preprocessing import test_pipeline_on_data_folder as run_preprocessing_on_folder
+from OCRImage.pipeline.ocr import batch_test_improved_ocr as run_ocr_batch
+from OCRImage.constant.config import PreProcessingConfig, OCRConfig
 
 
 def main():
@@ -14,13 +15,21 @@ def main():
 
     if args.step in ["all", "preprocess"]:
         print("\n==== RUNNING PREPROCESSING ====\n")
-        saved = run_preprocessing_on_folder(data_folder=args.data_folder, output_folder=args.preprocessed_folder)
-        print(f"\nPreprocessing saved {len(saved)} processed files to {args.preprocessed_folder}")
+        saved = run_preprocessing_on_folder()
+        print(f"\nPreprocessing saved processed files to {PreProcessingConfig.OUTPUT_FOLDER}")
 
     if args.step in ["all", "ocr"]:
         print("\n==== RUNNING OCR BATCH ====\n")
-        stats = run_ocr_batch(preprocessed_folder=args.preprocessed_folder, similarity_threshold=args.similarity_threshold)
+        stats = run_ocr_batch(folder_path=OCRConfig.PREPROCESSED_FOLDER, similarity_threshold=args.similarity_threshold)
         print("\nOCR batch completed.")
+    
+    if args.step == "all":
+        print("\n==== RUNNING FULL PIPELINE ====\n")
+        saved = run_preprocessing_on_folder()
+        print(f"\nPreprocessing saved processed files to {PreProcessingConfig.OUTPUT_FOLDER}")
+        stats = run_ocr_batch(folder_path=OCRConfig.PREPROCESSED_FOLDER, similarity_threshold=args.similarity_threshold)
+        print("\nOCR batch completed.")
+
 
     print("\nPipeline finished.")
 

@@ -1,75 +1,64 @@
-# preprocess_pipeline.py
-from pathlib import Path
 import cv2
+from pathlib import Path
 from OCRImage.components.orientation import auto_orient_image
 from OCRImage.components.pipeline import PreprocessingPipeline
 from OCRImage.constant.config import PreProcessingConfig
-from OCRImage.logging import logger
 
 
-def run_preprocessing_on_folder(
-    data_folder: str = "data",
-    output_folder: str = r"artifacts/preprocessing/results",
-    visualize: bool = False,
-):
+def test_pipeline_on_data_folder():
     """
-    Run orientation correction and preprocessing pipeline on all images in `data_folder`.
-    Saves preprocessed output images into `output_folder` with suffix `_preprocessed.png`.
-    Returns list of saved file paths.
+    Test orientation correction and preprocessing pipeline
+    on all image files in the 'data' directory.
     """
-    data_path = Path(data_folder)
-    out_path = Path(output_folder)
-    out_path.mkdir(parents=True, exist_ok=True)
 
-    if not data_path.exists():
-        print(f"❌ Data folder not found: {data_path.resolve()}")
-        return []
+    print("=" * 70)
+    print(" BATCH TESTING: ORIENTATION + PREPROCESSING PIPELINE")
+    print("=" * 70)
 
-    image_files = sorted([p for p in data_path.glob("*.*") if p.suffix.lower() in [".png", ".jpg", ".jpeg", ".tif", ".tiff"]])
+    data_folder = Path(PreProcessingConfig.DATA_FOLDER)
+    if not data_folder.exists():
+        print(f" Folder not found: {data_folder.resolve()}")
+        return
+
+    image_files = list(data_folder.glob("*.*"))
+
     if not image_files:
-        print(f"⚠ No image files found in {data_path.resolve()}")
-        return []
+        print(" No image files found in 'data/' folder.")
+        return
 
-    print(f"Found {len(image_files)} images in {data_path.resolve()}")
+    print(f" Found {len(image_files)} image(s) in '{data_folder.resolve()}'")
+
+    # Initialize preprocessing pipeline
     config = PreProcessingConfig()
     pipeline = PreprocessingPipeline(config)
 
-    saved_files = []
     for img_path in image_files:
         print("\n" + "-" * 70)
-        print(f"Processing: {img_path.name}")
-        img = cv2.imread(str(img_path))
-        if img is None:
-            print(f"  ❌ Unable to load: {img_path.name}")
+        print(f" Processing Image: {img_path.name}")
+
+        image = cv2.imread(str(img_path))
+        if image is None:
+            print(f" Unable to load image: {img_path.name}")
             continue
 
+        print("🔧 Step 1: Orientation Correction...")
+        oriented_image = auto_orient_image(image)
+        print(f"    Shape: {image.shape} → {oriented_image.shape}")
+
+        print("🔄 Step 2: Running preprocessing pipeline...")
         try:
-            # Step 1: orientation correction
-            oriented = auto_orient_image(img)
-            print(f"  Orientation corrected: {img.shape} -> {oriented.shape}")
-
-            # Step 2: preprocessing pipeline (returns processed_image, metadata)
-            processed, metadata = pipeline.process(oriented, img_path.stem)
-            # If your pipeline returns differently, adjust above accordingly.
-
-            # Save processed image
-            out_name = f"{img_path.stem}_preprocessed.png"
-            out_file = out_path.joinpath(out_name)
-            # Convert if needed to BGR uint8
-            if processed is None:
-                print("  ⚠ Pipeline returned None for processed image, skipping save.")
-                continue
-
-            cv2.imwrite(str(out_file), processed)
-            print(f"  ✅ Saved preprocessed image: {out_file}")
-            saved_files.append(out_file)
+            result, metadata = pipeline.process(oriented_image, img_path.stem)
+            print(f"    Pipeline completed – {len(metadata['processing_steps'])} steps executed")
+            print(f"    Artifacts saved under: 'artifacts/preprocessing/{img_path.stem}_*/'")
         except Exception as e:
-            print(f"  ❌ Error processing {img_path.name}: {e}")
-            logger.exception(e)
+            print(f"    Pipeline error: {e}")
+            continue
 
-    print("\nPreprocessing completed.")
-    return saved_files
+    print("\n" + "=" * 70)
+    print("🎉 TESTING FINISHED!")
+
+    return True
 
 
 if __name__ == "__main__":
-    run_preprocessing_on_folder()
+    test_pipeline_on_data_folder()
